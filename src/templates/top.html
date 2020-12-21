@@ -1,0 +1,213 @@
+{% extends "layout.html" %}
+{% block link %}
+    <link rel="stylesheet" href="static/css/top.css">
+{% endblock %}
+{% block content %}
+    <div class="content_wrap">
+        <h1>{{ title }}</h1>
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        <div class="form_wrap">
+            <form action="" method="post" enctype="multipart/form-data">
+                <p class="form_ttl">ファイルアップロード</p>
+                <div class="inner">
+                    <input type="file" name="uploadFile"/>
+                </div>
+            </form>
+            {% if files|length > 0 %}
+                <form id="selector_form" action="/select_pdf" method="post">
+                    <p class="form_ttl">アップロード済みファイルから選択</p>
+                    <div class="inner">
+                        <select name="member_selector">
+                            <option value=""><b>選択してください</b></option>
+                            {% for file in files %}
+                                <option value="{{ file }}"{{ ' selected' if results and results['file_name'] == file else '' }}>{{ file.replace('_full.pdf', '') }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+        {% if results %}
+            <div class="results_wrap">
+                <dl class="type_result_wrap">
+                    <dt><span><em>{{ results['name'] }}</em>さん<br>の診断結果<span class="hint">？</span></span></dt>
+                    <dd>
+                        <h2 class="{{ results['type']['class'] }}">{{ results['type']['type_name']|safe }}</h2>
+                        <div class="flex_wrap">
+                            <dl class="detail_wrap strong">
+                                <dt class="item_label">強み</dt>
+                                <dd>
+                                    <ul>
+                                        {% for data in results['type']['strong'] %}
+                                            <li>{{ data }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </dd>
+                            </dl>
+                            <dl class="detail_wrap week">
+                                <dt class="item_label">弱み</dt>
+                                <dd>
+                                    <ul>
+                                        {% for data in results['type']['week'] %}
+                                            <li>{{ data }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </dd>
+                            </dl>
+                            <dl class="detail_wrap point">
+                                <dt class="item_label">育成ポイント</dt>
+                                <dd>
+                                    <ul>
+                                        {% for data in results['type']['point'] %}
+                                            <li>{{ data }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </dd>
+                            </dl>
+                        </div>
+                    </dd>
+                </dl>
+                <dl class="data_wrap pt_wrap">
+                    <dt><img src="/static/images/icon_pt.svg"><span>性格特性</span></dt>
+                    <dd>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>項目</th>
+                                    <th>定義</th>
+                                    <th>偏差値</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(0, results['pt']['label']|length) %}
+                                    <tr>
+                                        <td>{{ results['pt']['label'][i] }}</td>
+                                        <td>{{ results['pt']['define'][i] }}</td>
+                                        <td>{{ results['pt']['score'][i] }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="canvas_wrap">
+                            <canvas id="pt_chart"></canvas>
+                        </div>
+                    </dd>
+                </dl>
+                <dl class="data_wrap cm_wrap">
+                    <dt><img src="/static/images/icon_cm.svg"><span>コミュニケーション力</span></dt>
+                    <dd>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>項目</th>
+                                    <th>定義</th>
+                                    <th>偏差値</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(0, results['cm']['label']|length) %}
+                                    <tr>
+                                        <td>{{ results['cm']['label'][i] }}</td>
+                                        <td>{{ results['cm']['define'][i] }}</td>
+                                        <td>{{ results['cm']['score'][i] }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="canvas_wrap">
+                            <canvas id="cm_chart"></canvas>
+                        </div>
+                    </dd>
+                </dl>
+            </div>
+            <div class="modal">
+                <div class="bigimg"><img src="/static/images/hint.png" alt="タイプ分ヒント"></div>
+                <p class="close-btn"><a href="">✖</a></p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+{% block script %}
+    {% if results %}
+        <script src="/static/js/chart-2.7.2.min.js"></script>
+        <script>
+            $(function() {
+                var pt_data = {
+                    labels: {{ results['pt']['label']|tojson }},
+                    datasets: [{
+                        label: '偏差値',
+                        data: {{ results['pt']['score']|tojson }},
+                        backgroundColor: '#ffd89b'
+                    }]
+                };
+                var cm_data = {
+                    labels: {{ results['cm']['label']|tojson }},
+                    datasets: [{
+                        label: '偏差値',
+                        data: {{ results['cm']['score']|tojson }},
+                        backgroundColor: '#ffc3b6'
+                    }]
+                };
+                var options = {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        xAxes: [{
+                            ticks: {
+                                min: 0,
+                                max: 100,
+                                stepSize: 10
+                            }
+                        }]
+                    }
+                };
+
+                var pt_chart = new Chart($('#pt_chart'), {
+                    type: 'horizontalBar',
+                    data: pt_data,
+                    options: options
+                });
+                var cm_chart = new Chart($('#cm_chart'), {
+                    type: 'horizontalBar',
+                    data: cm_data,
+                    options: options
+                });
+                $('.results_wrap > dl.type_result_wrap > dt span .hint').on('click', function () {
+                    $('.modal').fadeIn();
+                    $('body,html').css('overflow-y', 'hidden');
+                    return false
+                });
+                $('.close-btn').on('click',function() {
+                    $('.modal').fadeOut();
+                    $('body,html').css('overflow-y', 'visible');
+                    return false
+                });
+            });
+            let smoothScroll = function (target) {
+                if (target.length > 0) {
+                    let position = target.offset().top;
+                    $('body,html').animate({scrollTop:(position < 0) ? 0 : position}, 'slow', 'swing');
+                }
+            }
+            $(window).on('load', function() {
+                smoothScroll($('.results_wrap'));
+            });
+        </script>
+    {% endif %}
+    <script>
+        $(function() {
+            let exec_submit = function (elem) {
+                if (elem.val() != '') {
+                    elem.parents('form').submit();
+                }
+                return false;
+            }
+            $('[name="member_selector"], [name="uploadFile"]').on('change', function() {
+                exec_submit($(this));
+            });
+
+        })
+    </script>
+{% endblock %}
